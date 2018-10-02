@@ -61,6 +61,9 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
+  if(success)
+      printf("\n\nsucceeded!\n\n\n");
+
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
@@ -88,6 +91,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+    while(1) ;
   return -1;
 }
 
@@ -215,17 +219,23 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
+  char *seps = " \t\0", *save_ptr;
+  char *arg[10];
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
 
+  int j = 0;
+  for(arg[j++] = strtok_r(file_name, seps, &save_ptr); arg[j - 1] != NULL; arg[j++] = strtok_r(NULL, seps, &save_ptr))  ;
+
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (arg[0]);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", arg[0]);
       goto done; 
     }
 
@@ -304,6 +314,45 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
+
+  // push file_name arguments to stack
+  int l = 0;
+  i = --j;
+  for(--j; j >= 0; --j){
+      l += (strlen(arg[j]) + 1);
+      *esp -= (strlen(arg[j]) + 1);
+      strlcpy(*esp, arg[j], strlen(arg[j]) + 1);
+      arg[j] = *esp;
+  }
+
+  // push word alignment to stack
+  *esp -= (4 - (l%4));
+  memset(*esp, 0x00, sizeof(uint8_t));
+
+  // push null to stack
+  *esp -= 4;
+  memset(*esp, 0, 4);
+  
+  // push file_name argument stack pointer to stack
+  j = i;
+  for(--j; j >= 0; --j){
+      *esp -= 4;
+      **(uint32_t**)esp = arg[j];
+  }
+
+  // push file_name argument fist stack pointer to stack
+  *esp -= 4;
+  **(uint32_t**)esp = *esp + 4;
+
+  // push argument counts to stack
+  *esp -= 4;
+  **(uint32_t**)esp = i;
+
+  // push return address to stack
+  *esp -= 4;
+  memset(*esp, 0, 4);
+
+  hex_dump(*esp, *esp, 100, true);
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
