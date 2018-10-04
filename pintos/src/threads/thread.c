@@ -462,6 +462,9 @@ init_thread (struct thread *t, const char *name, int priority)
   ASSERT (t != NULL);
   ASSERT (PRI_MIN <= priority && priority <= PRI_MAX);
   ASSERT (name != NULL);
+    
+  char *save_ptr;
+  name = strtok_r(name, " \t\0", &save_ptr);
 
   memset (t, 0, sizeof *t);
   t->status = THREAD_BLOCKED;
