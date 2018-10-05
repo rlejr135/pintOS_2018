@@ -90,7 +90,6 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  int exit_status;
     while(1)    ;
   return -1;
 }
@@ -118,6 +117,12 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+
+  printf("\n\nexit\n\n\n");
+  struct list_elem *e = (&(cur->child_elem))->prev;
+  thread_unblock(list_entry(e, struct thread, child_elem));
+
+  thread_block();
 }
 
 /* Sets up the CPU for running user code in the current
