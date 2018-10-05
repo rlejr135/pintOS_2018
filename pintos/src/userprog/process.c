@@ -42,6 +42,8 @@ process_execute (const char *file_name)
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+
+  printf("\n\ntid:%d\n\n\n",tid);
   return tid;
 }
 
@@ -60,9 +62,6 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-
-  if(success)
-      printf("\n\nsucceeded!\n\n\n");
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -91,7 +90,8 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-    while(1) ;
+  int exit_status;
+    while(1)    ;
   return -1;
 }
 
@@ -220,7 +220,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   int i;
 
   char *seps = " \t\0", *save_ptr;
-  char *arg[10];
+  char *arg[50];
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -229,7 +229,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   int j = 0;
-  for(arg[j++] = strtok_r(file_name, seps, &save_ptr); arg[j - 1] != NULL; arg[j++] = strtok_r(NULL, seps, &save_ptr))  ;
+  for(arg[j++] = strtok_r(file_name, seps, &save_ptr); arg[j - 1] != NULL; arg[j++] = strtok_r(NULL, seps, &save_ptr)) ;
 
   /* Open executable file. */
   file = filesys_open (arg[0]);
@@ -327,7 +327,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   // push word alignment to stack
   *esp -= (4 - (l%4));
-  memset(*esp, 0x00, sizeof(uint8_t));
+  memset(*esp, 0x00, 1);
 
   // push null to stack
   *esp -= 4;
@@ -337,27 +337,27 @@ load (const char *file_name, void (**eip) (void), void **esp)
   j = i;
   for(--j; j >= 0; --j){
       *esp -= 4;
-      **(uint32_t**)esp = arg[j];
+      **(uintptr_t**)esp = arg[j];
   }
 
   // push file_name argument fist stack pointer to stack
   *esp -= 4;
-  **(uint32_t**)esp = *esp + 4;
+  **(uintptr_t**)esp = *esp + 4;
 
   // push argument counts to stack
   *esp -= 4;
-  **(uint32_t**)esp = i;
+  **(uintptr_t**)esp = i;
 
   // push return address to stack
   *esp -= 4;
   memset(*esp, 0, 4);
 
-  hex_dump(*esp, *esp, 100, true);
-
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
+
+  hex_dump(*esp, *esp, 100, 1);
 
  done:
   /* We arrive here whether the load is successful or not. */
@@ -407,6 +407,7 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
      it then user code that passed a null pointer to system calls
      could quite likely panic the kernel by way of null pointer
      assertions in memcpy(), etc. */
+
   if (phdr->p_vaddr < PGSIZE)
     return false;
 
