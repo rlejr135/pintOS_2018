@@ -90,22 +90,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-    printf("\nchild_tid:%d\n\n",child_tid);
-  struct thread *cur = thread_current(), *t;
-  struct list_elem *e;
-  int exit_status;
-  printf("\nhelp me\n\n");
-  for(e = list_begin(&(cur->child_elem)); e != list_end(&(cur->child_elem)); e = list_next(e)){
-      t = list_entry(e, struct thread, child_elem);
-      if(child_tid == t->tid){
-          exit_status = t->status;
-          while(t->status == THREAD_BLOCKED)
-              thread_unblock(t);
-          list_remove(e);
-          return exit_status;
-      }
-  }
-   // while(1)    ;
+    while(1)    ;
   return -1;
 }
 
